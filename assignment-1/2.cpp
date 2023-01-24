@@ -12,6 +12,7 @@ typedef struct p
 
 void updateVector(Particle &p, int rows, int cols)
 {
+    
 }
 
 void collisionResolution(vector<Particle> &particles, int rows, int cols)
@@ -38,14 +39,14 @@ int main(int argc, char *argv[])
     MPI_Type_commit(&MPI_PARTICLE);
     // ----------------------------------------------------------------------------
     int params[4];
-    Particle *particles;
+    vector<Particle> particles;
     if (rank == MASTER)
     {
         // cin >> params[0] >> params[1] >> params[2] >> params[3];
         params[0] = 5, params[1] = 5, params[2] = 3, params[3] = 1;
         int total = params[2] + size - ((params[2]) % size);
         int elements = total / size;
-        particles = (Particle *)malloc(sizeof(Particle) * total);
+        particles.resize(params[2]);
         // for (int i = 0; i < params[2]; i++)
         // {
         //     // Particle p;
@@ -67,13 +68,16 @@ int main(int argc, char *argv[])
     while (t--) // for each time-slice
     {
         // Particle *sub_particles = (Particle *)malloc(sizeof(Particle) * scatter_count);
-        Particle sub_particles[scatter_count];
-        MPI_Scatter(particles, scatter_count, MPI_PARTICLE, sub_particles, scatter_count, MPI_PARTICLE, MASTER, MPI_COMM_WORLD);
-        for (int i = 0; i < scatter_count; i++)
-        {
-            cout << rank << "\t" << sub_particles[i].x << "\t" << sub_particles[i].y << "\t" << sub_particles[i].dir << endl;
-        }
-        MPI_Gather(sub_particles, scatter_count, MPI_PARTICLE, particles, scatter_count, MPI_PARTICLE, MASTER, MPI_COMM_WORLD);
+        // Particle sub_particles[scatter_count];
+        vector<Particle> sub_particles(scatter_count);
+        MPI_Scatter(particles.data(), scatter_count, MPI_PARTICLE, sub_particles.data(), scatter_count, MPI_PARTICLE, MASTER, MPI_COMM_WORLD);
+        // for (int i = 0; i < scatter_count; i++)
+        // {
+        //     cout << rank << "\t" << sub_particles[i].x << "\t" << sub_particles[i].y << "\t" << sub_particles[i].dir << endl;
+        // }
+        
+
+        MPI_Gather(sub_particles.data(), scatter_count, MPI_PARTICLE, particles.data(), scatter_count, MPI_PARTICLE, MASTER, MPI_COMM_WORLD);
         MPI_Barrier(MPI_COMM_WORLD);
         if (rank == MASTER)
         {
