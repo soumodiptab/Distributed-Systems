@@ -10,7 +10,7 @@
             "args": [
                 "--use-hwthread-cpus",
                 "-np",
-                "11",
+                "3",
                 "${fileDirname}/${fileBasenameNoExtension}.out",
                 ""
             ],
