@@ -4,12 +4,13 @@
         {
             "name": "(mpirun) Launch",
             "type": "cppdbg",
-            "preLaunchTask": "mpicc_task",
+            "preLaunchTask": "mpicpp_task",
             "request": "launch",
-            "program": "/usr/bin/mpirun",
+            "program": "/usr/bin/mpirun.openmpi",
             "args": [
+                "--use-hwthread-cpus",
                 "-np",
-                "4",
+                "11",
                 "${fileDirname}/${fileBasenameNoExtension}.out",
                 ""
             ],

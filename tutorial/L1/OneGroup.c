@@ -3,8 +3,10 @@
 
 int main(int argc, char *argv[])
 {
+	// 0 - n-1  | each process will get a rank
 	int rank, size;
 	MPI_Init(&argc, &argv);
+	//group of processes use the communicator to send messages to one another
 	MPI_Comm comm = MPI_COMM_WORLD;
 	int comm_size;
 	char name[MPI_MAX_OBJECT_NAME];

@@ -40,5 +40,26 @@
                 "isDefault": true
             }
         },
+        {
+            "type": "shell",
+            "label": "mpicpp_task",
+            "command": "/usr/bin/mpic++",
+            "args": [
+                "-g",
+                "${file}",
+                "-o",
+                "${fileDirname}/${fileBasenameNoExtension}.out"
+            ],
+            "options": {
+                "cwd": "/usr/bin"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
     ]
 }
