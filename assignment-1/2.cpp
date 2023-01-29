@@ -67,52 +67,33 @@ void collisionResolution(vector<Particle> &particles, int rows, int cols, int k)
     }
     for (auto &p : collision_points)
     {
-        if (p.second.size() >= 2)
+        if (p.second[0]->x == 0 || p.second[0]->y == 0 || p.second[0]->x == cols - 1 || p.second[0]->y == rows - 1)
+            continue;
+        if (p.second.size() == 2)
         {
-            //
-            cout << " <collided at " << p.first << "  >" << endl;
-            vector<bool> vis(p.second.size(), false);
-            for (int i = 0; i < p.second.size(); i++)
+            if (p.second[0]->dir == 'R' && p.second[1]->dir == 'L')
             {
-                if (vis[i])
-                    continue;
-                for (int j = i + 1; j < p.second.size(); j++)
-                {
-                    if (vis[j])
-                        continue;
-                    if (p.second[i]->dir == 'R' && p.second[j]->dir == 'L' && (p.second[i]->y != 0 || p.second[i]->y == rows - 1))
-                    {
-                        p.second[i]->dir = 'D';
-                        p.second[j]->dir = 'U';
-                        vis[i] = true;
-                        vis[j] = true;
-                        break;
-                    }
-                    else if (p.second[i]->dir == 'L' && p.second[j]->dir == 'R' && (p.second[i]->y != 0 || p.second[i]->y == rows - 1))
-                    {
-                        p.second[i]->dir = 'U';
-                        p.second[j]->dir = 'D';
-                        vis[i] = true;
-                        vis[j] = true;
-                        break;
-                    }
-                    else if (p.second[i]->dir == 'U' && p.second[j]->dir == 'D' && (p.second[i]->x != 0 || p.second[i]->x == cols - 1))
-                    {
-                        p.second[i]->dir = 'R';
-                        p.second[j]->dir = 'L';
-                        vis[i] = true;
-                        vis[j] = true;
-                        break;
-                    }
-                    else if (p.second[i]->dir == 'D' && p.second[j]->dir == 'U' && (p.second[i]->x != 0 || p.second[i]->x == cols - 1))
-                    {
-                        p.second[i]->dir = 'L';
-                        p.second[j]->dir = 'R';
-                        vis[i] = true;
-                        vis[j] = true;
-                        break;
-                    }
-                }
+                p.second[0]->dir = 'D';
+                p.second[1]->dir = 'U';
+                cout << " <collided at " << p.first << "  >" << endl;
+            }
+            else if (p.second[0]->dir == 'L' && p.second[1]->dir == 'R')
+            {
+                p.second[0]->dir = 'U';
+                p.second[1]->dir = 'D';
+                cout << " <collided at " << p.first << "  >" << endl;
+            }
+            else if (p.second[0]->dir == 'U' && p.second[1]->dir == 'D')
+            {
+                p.second[0]->dir = 'R';
+                p.second[1]->dir = 'L';
+                cout << " <collided at " << p.first << "  >" << endl;
+            }
+            else if (p.second[0]->dir == 'D' && p.second[1]->dir == 'U')
+            {
+                p.second[0]->dir = 'L';
+                p.second[1]->dir = 'R';
+                cout << " <collided at " << p.first << "  >" << endl;
             }
         }
     }
@@ -164,11 +145,10 @@ int main(int argc, char *argv[])
             cout << particles[i].x << " " << particles[i].y << " " << particles[i].dir << endl;
         }
     }
-    MPI_Bcast(params, 4, MPI_INT, MASTER, MPI_COMM_WORLD);
+    // MPI_Bcast(params, 4, MPI_INT, MASTER, MPI_COMM_WORLD);
     int n = params[0], m = params[1], k = params[2], t = params[3];
     int scatter_count = ceil((double)k / size);
     // PARAM INIT
-    // t--;
     while (t--) // for each time-slice
     {
         // Particle *sub_particles = (Particle *)malloc(sizeof(Particle) * scatter_count);
@@ -178,26 +158,28 @@ int main(int argc, char *argv[])
         //     scatter_count = ceil((double)particles.size() / size);
         // }
         // MPI_Bcast(&scatter_count, 1, MPI_INT, MASTER, MPI_COMM_WORLD);
-        vector<Particle> sub_particles(scatter_count);
-        MPI_Scatter(particles.data(), scatter_count, MPI_PARTICLE, sub_particles.data(), scatter_count, MPI_PARTICLE, MASTER, MPI_COMM_WORLD);
-        for (int i = 0; i < scatter_count; i++)
+        // vector<Particle> sub_particles(scatter_count);
+        // MPI_Scatter(particles.data(), scatter_count, MPI_PARTICLE, sub_particles.data(), scatter_count, MPI_PARTICLE, MASTER, MPI_COMM_WORLD);
+        collisionResolution(particles, m, n, k);
+        for (int i = 0; i < k; i++)
         {
             // cout << rank << "\t" << sub_particles[i].x << "\t" << sub_particles[i].y << "\t" << sub_particles[i].dir << endl;
-            updateVector(sub_particles[i], m, n);
+            updateVector(particles[i], m, n);
         }
-        MPI_Gather(sub_particles.data(), scatter_count, MPI_PARTICLE, particles.data(), scatter_count, MPI_PARTICLE, MASTER, MPI_COMM_WORLD);
-        if (rank == MASTER)
+        // MPI_Gather(sub_particles.data(), scatter_count, MPI_PARTICLE, particles.data(), scatter_count, MPI_PARTICLE, MASTER, MPI_COMM_WORLD);
+        // if (rank == MASTER)
+        // {
+        //     cout << " gathered" << endl;
+        // collision resolution
+        // collisionResolution(particles, m, n, k);
+        cout << " ------ " << endl;
+        for (int i = 0; i < k; i++)
         {
-            cout << " gathered" << endl;
-            for (int i = 0; i < k; i++)
-            {
-                // Particle p;
-                cout << "* " << particles[i].x << " " << particles[i].y << " " << particles[i].dir << endl;
-            }
-            // collision resolution
-            // collisionResolution(particles, m, n, k);
+            // Particle p;
+            cout << "* " << particles[i].x << " " << particles[i].y << " " << particles[i].dir << endl;
         }
-        MPI_Barrier(MPI_COMM_WORLD);
+        //}
+        // MPI_Barrier(MPI_COMM_WORLD);
     }
     MPI_Finalize();
     return 0;
