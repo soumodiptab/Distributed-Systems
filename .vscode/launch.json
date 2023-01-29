@@ -6,12 +6,12 @@
             "type": "cppdbg",
             "preLaunchTask": "mpicpp_task",
             "request": "launch",
-            "program": "/usr/bin/mpirun.openmpi",
+            "program": "${fileDirname}/${fileBasenameNoExtension}.out",
             "args": [
                 "--use-hwthread-cpus",
                 "-np",
-                "3",
-                "${fileDirname}/${fileBasenameNoExtension}.out",
+                "11",
+                /*"${fileDirname}/${fileBasenameNoExtension}.out",*/
                 ""
             ],
             "stopAtEntry": false,

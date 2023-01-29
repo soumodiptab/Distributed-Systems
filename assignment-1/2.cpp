@@ -78,6 +78,8 @@ void collisionResolution(vector<Particle> &particles, int rows, int cols, int k)
                     continue;
                 for (int j = i + 1; j < p.second.size(); j++)
                 {
+                    if (vis[j])
+                        continue;
                     if (p.second[i]->dir == 'R' && p.second[j]->dir == 'L' && (p.second[i]->y != 0 || p.second[i]->y == rows - 1))
                     {
                         p.second[i]->dir = 'D';
@@ -142,16 +144,16 @@ int main(int argc, char *argv[])
     if (rank == MASTER)
     {
         cin >> params[0] >> params[1] >> params[2] >> params[3];
-        //params[0] = 4, params[1] = 6, params[2] = 4, params[3] = 15;
+        // params[0] = 4, params[1] = 6, params[2] = 4, params[3] = 15;
         cout << params[0] << " " << params[1] << " " << params[2] << " " << params[3] << endl;
         int total = params[2] + size - ((params[2]) % size);
         int elements = total / size;
         particles.resize(params[2]);
-        // for (int i = 0; i < params[2]; i++)
-        // {
-        //     // Particle p;
-        //     cin >> particles[i].x >> particles[i].y >> particles[i].dir;
-        // }
+        for (int i = 0; i < params[2]; i++)
+        {
+            // Particle p;
+            cin >> particles[i].x >> particles[i].y >> particles[i].dir;
+        }
         // particles[0].x = 1, particles[0].y = 1, particles[0].dir = 'R';
         // particles[1].x = 1, particles[1].y = 1, particles[1].dir = 'L';
         // particles[2].x = 3, particles[2].y = 4, particles[2].dir = 'U';
@@ -166,7 +168,7 @@ int main(int argc, char *argv[])
     int n = params[0], m = params[1], k = params[2], t = params[3];
     int scatter_count = ceil((double)k / size);
     // PARAM INIT
-    t--;
+    // t--;
     while (t--) // for each time-slice
     {
         // Particle *sub_particles = (Particle *)malloc(sizeof(Particle) * scatter_count);
@@ -193,7 +195,7 @@ int main(int argc, char *argv[])
                 cout << "* " << particles[i].x << " " << particles[i].y << " " << particles[i].dir << endl;
             }
             // collision resolution
-            collisionResolution(particles, m, n, k);
+            // collisionResolution(particles, m, n, k);
         }
         MPI_Barrier(MPI_COMM_WORLD);
     }
