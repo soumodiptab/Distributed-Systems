@@ -98,6 +98,26 @@ void collisionResolution(vector<Particle> &particles, int rows, int cols, int k)
         }
     }
 }
+void outputResolver(vector<Particle> &particles, int n, int m, int k)
+{
+    vector<vector<string>> grid(m, vector<string>(n, ""));
+    for (Particle &p : particles)
+    {
+        grid[m - p.y - 1][p.x].push_back(p.dir);
+    }
+    for (int i = 0; i < m; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            if (grid[i][j].empty())
+                cout << "-";
+            else
+                cout << grid[i][j];
+            cout << "\t";
+        }
+        cout << endl;
+    }
+}
 int main(int argc, char *argv[])
 {
     MPI_Init(&argc, &argv);
@@ -135,10 +155,6 @@ int main(int argc, char *argv[])
             // Particle p;
             cin >> particles[i].x >> particles[i].y >> particles[i].dir;
         }
-        // particles[0].x = 1, particles[0].y = 1, particles[0].dir = 'R';
-        // particles[1].x = 1, particles[1].y = 1, particles[1].dir = 'L';
-        // particles[2].x = 3, particles[2].y = 4, particles[2].dir = 'U';
-        // particles[3].x = 1, particles[3].y = 1, particles[3].dir = 'U';
         for (int i = 0; i < params[2]; i++)
         {
             // Particle p;
@@ -149,6 +165,7 @@ int main(int argc, char *argv[])
     int n = params[0], m = params[1], k = params[2], t = params[3];
     int scatter_count = ceil((double)k / size);
     // PARAM INIT
+    int counter = 0;
     while (t--) // for each time-slice
     {
         // Particle *sub_particles = (Particle *)malloc(sizeof(Particle) * scatter_count);
@@ -160,19 +177,22 @@ int main(int argc, char *argv[])
         // MPI_Bcast(&scatter_count, 1, MPI_INT, MASTER, MPI_COMM_WORLD);
         // vector<Particle> sub_particles(scatter_count);
         // MPI_Scatter(particles.data(), scatter_count, MPI_PARTICLE, sub_particles.data(), scatter_count, MPI_PARTICLE, MASTER, MPI_COMM_WORLD);
-        collisionResolution(particles, m, n, k);
+        // collisionResolution(particles, m, n, k);
         for (int i = 0; i < k; i++)
         {
             // cout << rank << "\t" << sub_particles[i].x << "\t" << sub_particles[i].y << "\t" << sub_particles[i].dir << endl;
             updateVector(particles[i], m, n);
         }
+
         // MPI_Gather(sub_particles.data(), scatter_count, MPI_PARTICLE, particles.data(), scatter_count, MPI_PARTICLE, MASTER, MPI_COMM_WORLD);
         // if (rank == MASTER)
         // {
         //     cout << " gathered" << endl;
         // collision resolution
-        // collisionResolution(particles, m, n, k);
-        cout << " ------ " << endl;
+        collisionResolution(particles, m, n, k);
+        //cout << " ------ " << counter++ << "------" << endl;
+        outputResolver(particles, n, m, k);
+        cout << " ------------------------------------" << endl;
         for (int i = 0; i < k; i++)
         {
             // Particle p;
