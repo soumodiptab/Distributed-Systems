@@ -10,9 +10,9 @@
             "args": [
                 "--use-hwthread-cpus",
                 "-np",
-                "11",
-                "${fileDirname}/${fileBasenameNoExtension}.out",
-                ""
+                "9",
+                "--oversubscribe",
+                "${fileDirname}/${fileBasenameNoExtension}.out"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
