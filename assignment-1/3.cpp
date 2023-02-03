@@ -30,17 +30,21 @@ int getsum(vector<Data> &arr, int i, int j)
     return sum;
 }
 
-void progress_transfer(vector<vector<int>> &dp, vector<vector<int>> &parent, int rank, int size, int n, int start, int end, int stage_datacount)
+void progress_transfer(vector<vector<int>> &dp, vector<vector<int>> &parent, int rank, int size, int n, int start, int end, int stage_datacount, int extra)
 {
     vector<Cost> send_buffer;
     vector<Cost> recieve_buffer;
     int datacount[size] = {0};
     int displacements[size] = {0};
-    for (int i = 0; i < size)
+    int offset = 0;
+    for (int i = 0; i < size; i++)
     {
-        datacount =
+        datacount[i] = stage_datacount + (i >= extra);
+        displacements[i] = offset;
+        offset += datacount[i];
     }
-    MPI_Allgatherv(send_buffer.data(), stage_datacount, MPI_COST, recieve_buffer.data(), datacount, displacements, MPI_COST, MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Allgatherv(send_buffer.data(), stage_datacount + (rank >= extra), MPI_COST, recieve_buffer.data(), datacount, displacements, MPI_COST, MPI_COMM_WORLD);
     n--;
     for (Cost &c : recieve_buffer)
     {
@@ -74,19 +78,25 @@ int main(int argc, char *argv[])
     oldtypes1[0] = MPI_INT;
     MPI_Type_create_struct(1, blockcounts1, offsets1, oldtypes1, &MPI_COST);
     MPI_Type_commit(&MPI_COST);
-    vector<Data> arr;
     if (rank == MASTER)
     {
         cin >> n;
-        arr.resize(n);
+    }
+    vector<Data> arr(n);
+    if (rank == MASTER)
+    {
         for (int i = 0; i < n; i++)
         {
             // cin >> arr[i].key >> arr[i].freq;
         }
+        arr = {{10, 34},
+               {12, 8},
+               {20, 50},
+               {10, 34},
+               {12, 8},
+               {10, 34},
+               {12, 8}};
     }
-    arr = {{10, 34},
-           {12, 8},
-           {20, 50}};
     // distributed - sort
     // int scatter_count;
     // if (rank == MASTER)
@@ -106,14 +116,18 @@ int main(int argc, char *argv[])
     if (rank == MASTER)
     {
         sort(arr.begin(), arr.end(), comp);
+        for (Data &i : arr)
+            cout << i.key << " ";
+        cout << endl;
     }
-    MPI_Bcast(&arr, n, MPI_DATA, MASTER, MPI_COMM_WORLD);
+    MPI_Bcast(arr.data(), n, MPI_DATA, MASTER, MPI_COMM_WORLD);
     for (int i = 0; i < n; i++)
     {
         dp[i][i] = arr[i].freq;
     }
     MPI_Barrier(MPI_COMM_WORLD);
     int chain_length = 2;
+    n--;
     while (n)
     {
         // for each stage calculate the start,end indices and data items
@@ -137,9 +151,12 @@ int main(int argc, char *argv[])
         }
         if (rank < n) // atleast 1 data item to be computed per process
         {
-            for (int i = start; i <= end - chain_length + 1; i++)
+            // cout << rank << " " << chain_length << " << start indices :" << start << " | " << end << endl;
+            //   optimal bst code
+            for (int i = start; i <= end; i++)
             {
                 int j = i + chain_length - 1;
+                // cout << rank << " " << chain_length << " << " << i << " | " << j << endl;
                 dp[i][j] = INT_MAX;
                 int offset_sum = getsum(arr, i, j);
                 for (int r = i; r <= j; r++)
@@ -149,9 +166,13 @@ int main(int argc, char *argv[])
                             ((r < j) ? dp[r + 1][j] : 0) +
                             offset_sum;
                     if (c < dp[i][j])
+                    {
                         dp[i][j] = c;
+                        parent[i][j] = r;
+                    }
                 }
-                cout << "rank =" << rank << "\t stage =" << n << "\t range =" << start << " " << end << "\t frame =" << stage_datacount << "|" << extra << "\t|| cost" << endl;
+                cout << "rank =" << rank << "\t stage =" << n << "\t range =" << start << " " << end << "\t frame ="
+                     << stage_datacount << "|" << extra << "\t|| cost[" << i << "," << j << "]=\t" << dp[i][j] << " | " << parent[i][j] << endl;
             }
         }
         // else
@@ -161,6 +182,7 @@ int main(int argc, char *argv[])
     }
     if (rank == MASTER)
     {
+        cout << " Final Answer = " << dp[0][n - 1] << endl;
         // print output here
     }
     MPI_Finalize();
