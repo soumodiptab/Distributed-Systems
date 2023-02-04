@@ -30,33 +30,62 @@ int getsum(vector<Data> &arr, int i, int j)
     return sum;
 }
 
-void progress_transfer(vector<vector<int>> &dp, vector<vector<int>> &parent, int rank, int size, int n, int start, int end, int stage_datacount, int extra)
+void progress_transfer(vector<vector<int>> &dp, vector<vector<int>> &parent, vector<Cost> send_buffer, int rank, int size, int n, int stage_datacount, int extra)
 {
-    vector<Cost> send_buffer;
-    vector<Cost> recieve_buffer;
     int datacount[size] = {0};
     int displacements[size] = {0};
     int offset = 0;
     for (int i = 0; i < size; i++)
     {
-        datacount[i] = stage_datacount + (i >= extra);
+        if (offset >= n)
+            break;
+        if (n < size)
+            datacount[i] = 1;
+        else
+            datacount[i] = stage_datacount + (i >= extra);
         displacements[i] = offset;
         offset += datacount[i];
+        cout << "stage = " << n << " progress = " << datacount[i] << " " << displacements[i] << endl;
     }
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Allgatherv(send_buffer.data(), stage_datacount + (rank >= extra), MPI_COST, recieve_buffer.data(), datacount, displacements, MPI_COST, MPI_COMM_WORLD);
+    cout << "stage =" << n << " offset =" << offset << " << " << endl;
+    vector<Cost> recieve_buffer(offset);
+    // MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Allgatherv(send_buffer.data(), send_buffer.size(), MPI_COST, recieve_buffer.data(), datacount, displacements, MPI_COST, MPI_COMM_WORLD);
     n--;
     for (Cost &c : recieve_buffer)
     {
         dp[c.i][c.j] = c.cost;
         parent[c.i][c.j] = c.parent;
+        if (rank == MASTER)
+        {
+            cout << rank << " stage =" << n << " || [" << c.i << "," << c.j << "] = " << c.cost << "|";
+        }
     }
+    cout << endl;
+}
+
+void recur(vector<int> &ans, vector<Data> &arr, vector<vector<int>> &parent, int i, int j, int prev)
+{
+    if (i > j)
+        return;
+    int current = parent[i][j];
+    ans[current] = prev + 1;
+    recur(ans, arr, parent, i, current - 1, current);
+    recur(ans, arr, parent, current + 1, j, current);
+}
+vector<int> construct_tree(vector<vector<int>> &parent, vector<Data> &arr)
+{
+    int n = parent.size();
+    vector<int> ans(n, 0);
+    recur(ans, arr, parent, 0, n - 1,0);
+    return ans;
 }
 int main(int argc, char *argv[])
 {
     // custom input
     ifstream cin("./assignment-1/3_inp.txt");
-    int n;
+    // remove later
+    int n, total;
     MPI_Init(&argc, &argv);
     int size, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -81,21 +110,26 @@ int main(int argc, char *argv[])
     if (rank == MASTER)
     {
         cin >> n;
+        total = n;
     }
+    MPI_Bcast(&n, 1, MPI_INT, MASTER, MPI_COMM_WORLD);
     vector<Data> arr(n);
     if (rank == MASTER)
     {
         for (int i = 0; i < n; i++)
         {
-            // cin >> arr[i].key >> arr[i].freq;
+            cin >> arr[i].key >> arr[i].freq;
         }
-        arr = {{10, 34},
-               {12, 8},
-               {20, 50},
-               {10, 34},
-               {12, 8},
-               {10, 34},
-               {12, 8}};
+        // arr = {{10, 34},
+        //        {12, 8},
+        //        {13, 15},
+        //        {15, 20},
+        //        {20, 50}};
+        // arr = {
+        //     {1, 2},
+        //     {2, 3},
+        //     {3, 4},
+        //     {4, 1}};
     }
     // distributed - sort
     // int scatter_count;
@@ -103,7 +137,6 @@ int main(int argc, char *argv[])
     // {
     //     scatter_count = ceil((double)n / size);
     // }
-    MPI_Bcast(&n, 1, MPI_INT, MASTER, MPI_COMM_WORLD);
     /*
     Parallelized merge sort code goes here
     */
@@ -149,6 +182,7 @@ int main(int argc, char *argv[])
             start = stage_datacount * rank;
             end = start + stage_datacount - 1;
         }
+        vector<Cost> send_buffer;
         if (rank < n) // atleast 1 data item to be computed per process
         {
             // cout << rank << " " << chain_length << " << start indices :" << start << " | " << end << endl;
@@ -171,18 +205,20 @@ int main(int argc, char *argv[])
                         parent[i][j] = r;
                     }
                 }
+                send_buffer.push_back({i, j, dp[i][j], parent[i][j]});
                 cout << "rank =" << rank << "\t stage =" << n << "\t range =" << start << " " << end << "\t frame ="
                      << stage_datacount << "|" << extra << "\t|| cost[" << i << "," << j << "]=\t" << dp[i][j] << " | " << parent[i][j] << endl;
             }
         }
         // else
         //  cout << "rank =" << rank << "\t stage =" << n << endl;
+        progress_transfer(dp, parent, send_buffer, rank, size, n, stage_datacount, extra);
         MPI_Barrier(MPI_COMM_WORLD);
         n--, chain_length++;
     }
     if (rank == MASTER)
     {
-        cout << " Final Answer = " << dp[0][n - 1] << endl;
+        cout << "Final Answer = " << dp[0][total - 1] << endl;
         // print output here
     }
     MPI_Finalize();
