@@ -152,9 +152,9 @@ vector<Data> data_recv(int rank)
     MPI_Recv(&msg_size, 1, MPI_INT, rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     if (msg_size == 0)
         return {};
-    vector<Data> particles(msg_size);
-    MPI_Recv(particles.data(), msg_size, MPI_DATA, rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    return particles;
+    vector<Data> dataitems(msg_size);
+    MPI_Recv(dataitems.data(), msg_size, MPI_DATA, rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    return dataitems;
 }
 /**
  * @brief Scatter data across different processes using variable displacement size
@@ -170,15 +170,55 @@ vector<Data> data_scatter(int rank, int world_size, vector<Data> &data_items)
     int extra = world_size - (n % world_size);
     if (rank == MASTER)
     {
+        int offset = 0;
+        for (int i = 0; i < world_size; i++)
+        {
+            int start = offset;
+            int end = start + alloc + (i >= extra);
+            offset = end;
+            vector<Data> buffer(data_items.begin() + start, data_items.begin() + end);
+            data_send(buffer, i);
+        }
     }
+    vector<Data> recv_buffer = data_recv(MASTER);
+    return recv_buffer;
 }
+/**
+ * @brief
+ *
+ * @param rank
+ * @param world_size
+ * @param data_items
+ * @return vector<Data>
+ */
+vector<Data> data_gather(int rank, int world_size, vector<Data> &data_items)
+{
+    vector<Data> buffer;
+    data_send(data_items, MASTER);
+    if (rank == MASTER)
+    {
+        for (int i = 0; i < world_size; i++)
+        {
+            vector<Data> temp_buffer = data_recv(i);
+            buffer.insert(buffer.end(), temp_buffer.begin(), temp_buffer.end());
+        }
+    }
+    return buffer;
+}
+/**
+ * @brief
+ *
+ * @param half1
+ * @param half2
+ * @return vector<Data>
+ */
 vector<Data> merge(vector<Data> &half1, vector<Data> &half2)
 {
     vector<Data> res(half1.size() + half2.size());
     int l = 0, r = 0, ctr = 0;
     while (l < half1.size() && r < half2.size())
     {
-        if (half1[l].key < half2[r].key)
+        if (half1[l].key <= half2[r].key)
             res[ctr++] = half1[l++];
         else
             res[ctr++] = half2[r++];
@@ -189,6 +229,14 @@ vector<Data> merge(vector<Data> &half1, vector<Data> &half2)
         res[ctr++] = half2[r++];
     return res;
 }
+/**
+ * @brief
+ *
+ * @param height
+ * @param rank
+ * @param local
+ * @param global
+ */
 void mergesort(int height, int rank, int size, vector<Data> &local, vector<Data> &global)
 {
     int parent, child;
@@ -197,15 +245,21 @@ void mergesort(int height, int rank, int size, vector<Data> &local, vector<Data>
     while (proc_height < height)
     {
         parent = (rank & ~(1 << proc_height));
+        cout << "[Mergesort][rank = " << rank << " ]\tparent = " << parent << "\tproc_height = " << proc_height << endl;
         if (rank == parent)
         {
             child = (rank | (1 << proc_height));
-            vector<Data> child_data = data_recv(child);
-            local = merge(local, child_data);
+            if (child < size)
+            {
+                vector<Data> child_data = data_recv(child);
+                cout << "[Mergesort][rank = " << rank << " ][recv]\tparent = " << parent << "\tproc_height = " << proc_height << "child =" << child << "\trecv size =" << child_data.size() << endl;
+                local = merge(local, child_data);
+            }
             proc_height++;
         }
         else
         {
+            cout << "[Mergesort][rank = " << rank << " ][send]\tparent = " << parent << "\tproc_height = " << proc_height << "\t send size = " << local.size() << endl;
             data_send(local, parent);
             if (proc_height != 0)
                 local.clear();
@@ -218,6 +272,13 @@ void mergesort(int height, int rank, int size, vector<Data> &local, vector<Data>
         local.clear();
     }
 }
+/**
+ * @brief
+ *
+ * @param argc
+ * @param argv
+ * @return int
+ */
 int main(int argc, char *argv[])
 {
     // custom input
@@ -263,17 +324,22 @@ int main(int argc, char *argv[])
         //     {3, 4},
         //     {4, 1}};
     }
-    int scatter_count = ceil((double)n / size);
-    int height = log2(size);
+
+    int height = ceil(log2(size));
+    cout << "<>Height =" << height << endl;
     // Parallelized merge sort code goes here
     vector<Data> sub_list = data_scatter(rank, size, arr);
+    // for (auto &d : sub_list)
+    // {
+    //     cout << "rank =" << rank << "recieved  =" << d.freq << " | " << d.key << endl;
+    // }
     if (rank == MASTER)
     {
-        mergesort(height, rank, scatter_count, sub_list, arr);
+        mergesort(height, rank, size, sub_list, arr);
     }
     else
     {
-        mergesort(height, rank, scatter_count, sub_list, arr);
+        mergesort(height, rank, size, sub_list, arr);
         arr.clear();
     }
     // MPI_Gather(sub_list.data(), scatter_count, MPI_DATA, arr.data(), scatter_count, MPI_DATA, MASTER, MPI_COMM_WORLD);
@@ -282,9 +348,11 @@ int main(int argc, char *argv[])
     if (rank == MASTER)
     {
         // sort(arr.begin(), arr.end(), comp);
+        cout << "--------------------------------------------------------" << endl;
         for (Data &i : arr)
-            cout << i.key << " ";
+            cout << i.key << "|" << i.freq << endl;
         cout << endl;
+        cout << "--------------------------------------------------------" << endl;
     }
     MPI_Bcast(arr.data(), n, MPI_DATA, MASTER, MPI_COMM_WORLD);
     for (int i = 0; i < n; i++)
