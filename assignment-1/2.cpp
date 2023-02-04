@@ -207,7 +207,7 @@ int main(int argc, char *argv[])
     int blockcounts[2];
     oldtypes[0] = MPI_INT;
     offsets[0] = 0;
-    blockcounts[0] = 3;
+    blockcounts[0] = 2;
     MPI_Type_get_extent(MPI_INT, &lb, &extent);
     oldtypes[1] = MPI_CHAR;
     offsets[1] = 2 * extent;

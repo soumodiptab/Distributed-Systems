@@ -1,3 +1,13 @@
+/**
+ * @file 3.cpp
+ * @author Soumodipta Bose (sbose2019@gmail.com)
+ * @brief
+ * @version 1.0
+ * @date 2023-02-05
+ *
+ * @copyright Copyright (c) 2023
+ *
+ */
 #include <bits/stdc++.h>
 #include <mpi.h>
 using namespace std;
@@ -19,7 +29,15 @@ bool comp(const Data &a, const Data &b)
     return a.key <= b.key;
 }
 const int MASTER = 0;
-MPI_Datatype MPI_COST;
+MPI_Datatype MPI_DATA, MPI_COST;
+/**
+ * @brief
+ *
+ * @param arr
+ * @param i
+ * @param j
+ * @return int
+ */
 int getsum(vector<Data> &arr, int i, int j)
 {
     int sum = 0;
@@ -29,7 +47,18 @@ int getsum(vector<Data> &arr, int i, int j)
     }
     return sum;
 }
-
+/**
+ * @brief
+ *
+ * @param dp
+ * @param parent
+ * @param send_buffer
+ * @param rank
+ * @param size
+ * @param n
+ * @param stage_datacount
+ * @param extra
+ */
 void progress_transfer(vector<vector<int>> &dp, vector<vector<int>> &parent, vector<Cost> send_buffer, int rank, int size, int n, int stage_datacount, int extra)
 {
     int datacount[size] = {0};
@@ -63,22 +92,131 @@ void progress_transfer(vector<vector<int>> &dp, vector<vector<int>> &parent, vec
     }
     cout << endl;
 }
-
+/**
+ * @brief
+ *
+ * @param ans
+ * @param arr
+ * @param parent
+ * @param i
+ * @param j
+ * @param prev
+ */
 void recur(vector<int> &ans, vector<Data> &arr, vector<vector<int>> &parent, int i, int j, int prev)
 {
     if (i > j)
         return;
+    // cout << "< " << i << "|" << j << "|" << prev << " >" << endl;
     int current = parent[i][j];
     ans[current] = prev + 1;
     recur(ans, arr, parent, i, current - 1, current);
     recur(ans, arr, parent, current + 1, j, current);
 }
+/**
+ * @brief
+ *
+ * @param parent
+ * @param arr
+ * @return vector<int>
+ */
 vector<int> construct_tree(vector<vector<int>> &parent, vector<Data> &arr)
 {
     int n = parent.size();
     vector<int> ans(n, 0);
-    recur(ans, arr, parent, 0, n - 1,0);
+    recur(ans, arr, parent, 0, n - 1, -1);
     return ans;
+}
+/**
+ * @brief
+ *
+ * @param dataitems
+ * @param rank
+ */
+void data_send(vector<Data> &dataitems, int rank)
+{
+    int size = dataitems.size();
+    MPI_Send(&size, 1, MPI_INT, rank, 0, MPI_COMM_WORLD);
+    if (size == 0)
+        return;
+    MPI_Send(dataitems.data(), dataitems.size(), MPI_DATA, rank, 0, MPI_COMM_WORLD);
+}
+/**
+ * @brief
+ *
+ * @param rank
+ * @return vector<Data>
+ */
+vector<Data> data_recv(int rank)
+{
+    int msg_size;
+    MPI_Recv(&msg_size, 1, MPI_INT, rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    if (msg_size == 0)
+        return {};
+    vector<Data> particles(msg_size);
+    MPI_Recv(particles.data(), msg_size, MPI_DATA, rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    return particles;
+}
+/**
+ * @brief Scatter data across different processes using variable displacement size
+ *
+ * @param rank - rank of process
+ * @param world_size - size of the processes
+ * @param data_items - global data to be scattered
+ */
+vector<Data> data_scatter(int rank, int world_size, vector<Data> &data_items)
+{
+    int n = data_items.size();
+    int alloc = n / world_size;
+    int extra = world_size - (n % world_size);
+    if (rank == MASTER)
+    {
+    }
+}
+vector<Data> merge(vector<Data> &half1, vector<Data> &half2)
+{
+    vector<Data> res(half1.size() + half2.size());
+    int l = 0, r = 0, ctr = 0;
+    while (l < half1.size() && r < half2.size())
+    {
+        if (half1[l].key < half2[r].key)
+            res[ctr++] = half1[l++];
+        else
+            res[ctr++] = half2[r++];
+    }
+    while (l < half1.size())
+        res[ctr++] = half1[l++];
+    while (r < half2.size())
+        res[ctr++] = half2[r++];
+    return res;
+}
+void mergesort(int height, int rank, int size, vector<Data> &local, vector<Data> &global)
+{
+    int parent, child;
+    sort(local.begin(), local.end(), comp);
+    int proc_height = 0;
+    while (proc_height < height)
+    {
+        parent = (rank & ~(1 << proc_height));
+        if (rank == parent)
+        {
+            child = (rank | (1 << proc_height));
+            vector<Data> child_data = data_recv(child);
+            local = merge(local, child_data);
+            proc_height++;
+        }
+        else
+        {
+            data_send(local, parent);
+            if (proc_height != 0)
+                local.clear();
+            proc_height = height;
+        }
+    }
+    if (rank == MASTER)
+    {
+        global = local;
+        local.clear();
+    }
 }
 int main(int argc, char *argv[])
 {
@@ -90,9 +228,8 @@ int main(int argc, char *argv[])
     int size, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
     /* MPI Data : freq + key */
-    MPI_Datatype MPI_DATA, oldtypes[1], oldtypes1[1];
+    MPI_Datatype oldtypes[1], oldtypes1[1];
     MPI_Aint offsets[1], offsets1[1];
     int blockcounts[1], blockcounts1[1];
     oldtypes[0] = MPI_INT;
@@ -100,7 +237,7 @@ int main(int argc, char *argv[])
     blockcounts[0] = 2;
     MPI_Type_create_struct(1, blockcounts, offsets, oldtypes, &MPI_DATA);
     MPI_Type_commit(&MPI_DATA);
-    /* MPI Cost : i,j,cost,parent*/
+    /* MPI Cost : i,j,cost,parent */
     oldtypes1[0] = MPI_INT;
     offsets1[0] = 0;
     blockcounts1[0] = 4;
@@ -120,35 +257,31 @@ int main(int argc, char *argv[])
         {
             cin >> arr[i].key >> arr[i].freq;
         }
-        // arr = {{10, 34},
-        //        {12, 8},
-        //        {13, 15},
-        //        {15, 20},
-        //        {20, 50}};
         // arr = {
         //     {1, 2},
         //     {2, 3},
         //     {3, 4},
         //     {4, 1}};
     }
-    // distributed - sort
-    // int scatter_count;
-    // if (rank == MASTER)
-    // {
-    //     scatter_count = ceil((double)n / size);
-    // }
-    /*
-    Parallelized merge sort code goes here
-    */
-    // vector<Data> sub_list(scatter_count);
-    // MPI_Scatter(arr.data(), scatter_count, MPI_DATA, sub_list.data(), scatter_count, MPI_DATA, MASTER, MPI_COMM_WORLD);
-    // sort(sub_list.begin(), sub_list.end(), comp);
+    int scatter_count = ceil((double)n / size);
+    int height = log2(size);
+    // Parallelized merge sort code goes here
+    vector<Data> sub_list = data_scatter(rank, size, arr);
+    if (rank == MASTER)
+    {
+        mergesort(height, rank, scatter_count, sub_list, arr);
+    }
+    else
+    {
+        mergesort(height, rank, scatter_count, sub_list, arr);
+        arr.clear();
+    }
     // MPI_Gather(sub_list.data(), scatter_count, MPI_DATA, arr.data(), scatter_count, MPI_DATA, MASTER, MPI_COMM_WORLD);
     vector<vector<int>> dp(n, vector<int>(n, 0));
     vector<vector<int>> parent(n, vector<int>(n, 0));
     if (rank == MASTER)
     {
-        sort(arr.begin(), arr.end(), comp);
+        // sort(arr.begin(), arr.end(), comp);
         for (Data &i : arr)
             cout << i.key << " ";
         cout << endl;
@@ -157,6 +290,7 @@ int main(int argc, char *argv[])
     for (int i = 0; i < n; i++)
     {
         dp[i][i] = arr[i].freq;
+        parent[i][i] = i;
     }
     MPI_Barrier(MPI_COMM_WORLD);
     int chain_length = 2;
@@ -218,7 +352,23 @@ int main(int argc, char *argv[])
     }
     if (rank == MASTER)
     {
+        cout << "-----------------------------------------------------------------" << endl;
         cout << "Final Answer = " << dp[0][total - 1] << endl;
+        cout << "-----------------------------------------------------------------" << endl;
+        for (auto &vec : parent)
+        {
+            for (int &ele : vec)
+            {
+                cout << ele << " ";
+            }
+            cout << endl;
+        }
+        vector<int> ans = construct_tree(parent, arr);
+        for (int i = 0; i < total; i++)
+        {
+            cout << " key = " << arr[i].key << " parent = " << ans[i] << endl;
+        }
+        cout << "-----------------------------------------------------------------" << endl;
         // print output here
     }
     MPI_Finalize();
