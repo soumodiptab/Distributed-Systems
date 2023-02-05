@@ -10,7 +10,7 @@
             "args": [
                 "--use-hwthread-cpus",
                 "-np",
-                "3",
+                "10",
                 "--oversubscribe",
                 "${fileDirname}/${fileBasenameNoExtension}.out"
             ],
