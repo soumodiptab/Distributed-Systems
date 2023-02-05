@@ -207,7 +207,7 @@ int main(int argc, char *argv[])
     int blockcounts[2];
     oldtypes[0] = MPI_INT;
     offsets[0] = 0;
-    blockcounts[0] = 2;
+    blockcounts[0] = 3;
     MPI_Type_get_extent(MPI_INT, &lb, &extent);
     oldtypes[1] = MPI_CHAR;
     offsets[1] = 2 * extent;
@@ -281,7 +281,7 @@ int main(int argc, char *argv[])
         MPI_Recv(BOUND, 2, MPI_INT, MASTER, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         int LOWER_BOUND = BOUND[0], UPPER_BOUND = BOUND[1];
         sub_list = particle_recv(MASTER);
-        // cout << "|  rank =" << rank << " LB = " << LOWER_BOUND << " UB =" << UPPER_BOUND << endl;
+        cout << "|  rank =" << rank << " LB = " << LOWER_BOUND << " UB =" << UPPER_BOUND << endl;
         for (Particle &p : sub_list)
         {
             row_map[p.y].push_back(p);
@@ -305,6 +305,13 @@ int main(int argc, char *argv[])
             new_row_map.clear();
             particle_filter(row_map, LOWER_BOUND, UPPER_BOUND, rank, size, t);
             collisionResolution(row_map, LOWER_BOUND, UPPER_BOUND, m, n, k);
+            for (auto &v : row_map)
+            {
+                for (Particle &p : v.second)
+                {
+                    cout << "rank = " << rank << " iter = " << t << "\t" << p.x << " | " << p.y << " | " << p.dir << endl;
+                }
+            }
             // MPI_Barrier(MPI_COMM_WORLD);
         }
         for (int i = LOWER_BOUND; i <= UPPER_BOUND; i++)
