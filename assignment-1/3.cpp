@@ -18,10 +18,10 @@ typedef struct d
 } Data;
 typedef struct x
 {
-    int i;
-    int j;
-    int cost;
-    int parent;
+    long i;
+    long j;
+    long cost;
+    long parent;
 } Cost;
 
 bool comp(const Data &a, const Data &b)
@@ -38,14 +38,9 @@ MPI_Datatype MPI_DATA, MPI_COST;
  * @param j
  * @return int
  */
-int getsum(vector<Data> &arr, int i, int j)
+long getsum(vector<long> &presum, int i, int j)
 {
-    int sum = 0;
-    for (int k = i; k <= j; k++)
-    {
-        sum += arr[k].freq;
-    }
-    return sum;
+    return presum[j + 1] - presum[i];
 }
 /**
  * @brief
@@ -59,7 +54,7 @@ int getsum(vector<Data> &arr, int i, int j)
  * @param stage_datacount
  * @param extra
  */
-void progress_transfer(vector<vector<int>> &dp, vector<vector<int>> &parent, vector<Cost> send_buffer, int rank, int size, int n, int stage_datacount, int extra)
+void progress_transfer(vector<vector<long>> &dp, vector<vector<int>> &parent, vector<Cost> send_buffer, int rank, int size, int n, int stage_datacount, int extra)
 {
     int datacount[size] = {0};
     int displacements[size] = {0};
@@ -282,7 +277,7 @@ void mergesort(int height, int rank, int size, vector<Data> &local, vector<Data>
 int main(int argc, char *argv[])
 {
     // custom input
-    ifstream cin("./assignment-1/3_inp.txt");
+    // ifstream cin("./assignment-1/3_inp.txt");
     // remove later
     int n, total;
     MPI_Init(&argc, &argv);
@@ -299,10 +294,9 @@ int main(int argc, char *argv[])
     MPI_Type_create_struct(1, blockcounts, offsets, oldtypes, &MPI_DATA);
     MPI_Type_commit(&MPI_DATA);
     /* MPI Cost : i,j,cost,parent */
-    oldtypes1[0] = MPI_INT;
+    oldtypes1[0] = MPI_LONG;
     offsets1[0] = 0;
     blockcounts1[0] = 4;
-    oldtypes1[0] = MPI_INT;
     MPI_Type_create_struct(1, blockcounts1, offsets1, oldtypes1, &MPI_COST);
     MPI_Type_commit(&MPI_COST);
     if (rank == MASTER)
@@ -324,7 +318,11 @@ int main(int argc, char *argv[])
         //     {3, 4},
         //     {4, 1}};
     }
-
+    double start_time;
+    if (rank == MASTER)
+    {
+        start_time = MPI_Wtime();
+    }
     int height = ceil(log2(size));
     // cout << "<>Height =" << height << endl;
     //  Parallelized merge sort code goes here
@@ -343,7 +341,18 @@ int main(int argc, char *argv[])
         arr.clear();
     }
     // MPI_Gather(sub_list.data(), scatter_count, MPI_DATA, arr.data(), scatter_count, MPI_DATA, MASTER, MPI_COMM_WORLD);
-    vector<vector<int>> dp(n, vector<int>(n, 0));
+    vector<long> presum(n + 1, 0);
+    if (rank == MASTER)
+    {
+
+        for (int i = 1; i <= n; i++)
+        {
+            presum[i] = presum[i - 1] + arr[i - 1].freq;
+            // cout << presum[i] << " " << arr[i - 1].key << "|" << arr[i - 1].freq << endl;
+        }
+    }
+    MPI_Bcast(presum.data(), n + 1, MPI_LONG, MASTER, MPI_COMM_WORLD);
+    vector<vector<long>> dp(n, vector<long>(n, 0));
     vector<vector<int>> parent(n, vector<int>(n, 0));
     // if (rank == MASTER)
     // {
@@ -394,7 +403,7 @@ int main(int argc, char *argv[])
                 int j = i + chain_length - 1;
                 // cout << rank << " " << chain_length << " << " << i << " | " << j << endl;
                 dp[i][j] = INT_MAX;
-                int offset_sum = getsum(arr, i, j);
+                int offset_sum = getsum(presum, i, j);
                 for (int r = i; r <= j; r++)
                 {
                     // c = cost when keys[r] becomes root of this subtree
@@ -439,6 +448,8 @@ int main(int argc, char *argv[])
         cout << endl;
         // cout << "-----------------------------------------------------------------" << endl;
         //  print output here
+        double end_time = MPI_Wtime();
+        // cout << end_time - start_time << endl;
     }
     MPI_Finalize();
     return 0;

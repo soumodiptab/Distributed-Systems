@@ -29,7 +29,7 @@ int mandelbrot(int idx, int rows, int cols, int k)
 }
 int main(int argc, char *argv[])
 {
-    ifstream cin("./assignment-1/1_inp.txt");
+    // ifstream cin("./assignment-1/1_inp.txt");
     MPI_Init(&argc, &argv);
     int size, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &size);

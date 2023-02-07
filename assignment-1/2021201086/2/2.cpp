@@ -195,24 +195,24 @@ void particle_filter(unordered_map<int, vector<Particle>> &row_map, int lb, int 
 int main(int argc, char *argv[])
 {
     // if stream remove later
-    ifstream cin("./assignment-1/2_inp.txt");
+    // ifstream cin("./assignment-1/2_inp.txt");
     MPI_Init(&argc, &argv);
     int size, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     // ----------------------------------------------------------------------------
     /* MPI PARTICLE : Custom PARTICLE TYPE */
-    MPI_Datatype oldtypes[2];
-    MPI_Aint offsets[2], lb, extent;
+    MPI_Datatype old_types[2];
+    MPI_Aint offsets[2], lower_bound, extent;
+    MPI_Type_get_extent(MPI_INT, &lower_bound, &extent);
     int blockcounts[2];
-    oldtypes[0] = MPI_INT;
-    offsets[0] = 0;
     blockcounts[0] = 3;
-    MPI_Type_get_extent(MPI_INT, &lb, &extent);
-    oldtypes[1] = MPI_CHAR;
-    offsets[1] = 2 * extent;
+    old_types[0] = MPI_INT;
+    offsets[0] = 0;
     blockcounts[1] = 1;
-    MPI_Type_create_struct(1, blockcounts, offsets, oldtypes, &MPI_PARTICLE);
+    old_types[1] = MPI_CHAR;
+    offsets[1] = 2 * extent;
+    MPI_Type_create_struct(1, blockcounts, offsets, old_types, &MPI_PARTICLE);
     MPI_Type_commit(&MPI_PARTICLE);
     // ----------------------------------------------------------------------------
     int params[4];
@@ -237,6 +237,11 @@ int main(int argc, char *argv[])
         // {
         //     cout << particles[i].x << " " << particles[i].y << " " << particles[i].dir << endl;
         // }
+    }
+    double start_time;
+    if (rank == MASTER)
+    {
+        start_time = MPI_Wtime();
     }
     MPI_Bcast(params, 4, MPI_INT, MASTER, MPI_COMM_WORLD);
     int n = params[0], m = params[1], k = params[2], t = params[3];
@@ -281,7 +286,7 @@ int main(int argc, char *argv[])
         MPI_Recv(BOUND, 2, MPI_INT, MASTER, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         int LOWER_BOUND = BOUND[0], UPPER_BOUND = BOUND[1];
         sub_list = particle_recv(MASTER);
-        cout << "|  rank =" << rank << " LB = " << LOWER_BOUND << " UB =" << UPPER_BOUND << endl;
+        // cout << "|  rank =" << rank << " LB = " << LOWER_BOUND << " UB =" << UPPER_BOUND << endl;
         for (Particle &p : sub_list)
         {
             row_map[p.y].push_back(p);
@@ -305,13 +310,13 @@ int main(int argc, char *argv[])
             new_row_map.clear();
             particle_filter(row_map, LOWER_BOUND, UPPER_BOUND, rank, size, t);
             collisionResolution(row_map, LOWER_BOUND, UPPER_BOUND, m, n, k);
-            for (auto &v : row_map)
-            {
-                for (Particle &p : v.second)
-                {
-                    cout << "rank = " << rank << " iter = " << t << "\t" << p.x << " | " << p.y << " | " << p.dir << endl;
-                }
-            }
+            // for (auto &v : row_map)
+            // {
+            //     for (Particle &p : v.second)
+            //     {
+            //         cout << "rank = " << rank << " iter = " << t << "\t" << p.x << " | " << p.y << " | " << p.dir << endl;
+            //     }
+            // }
             // MPI_Barrier(MPI_COMM_WORLD);
         }
         for (int i = LOWER_BOUND; i <= UPPER_BOUND; i++)
@@ -342,6 +347,8 @@ int main(int argc, char *argv[])
             // Particle p;
             cout << list[i].x << " " << list[i].y << " " << list[i].dir << endl;
         }
+        double end_time = MPI_Wtime();
+        // cout << end_time - start_time << endl;
     }
     MPI_Finalize();
     return 0;
