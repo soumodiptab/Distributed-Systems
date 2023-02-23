@@ -1,0 +1,9 @@
+{
+    "editor.defaultFormatter": "mblode.pretty-formatter",
+    "python.linting.pylintEnabled": true,
+    "python.linting.flake8Enabled": false,
+    "python.linting.enabled": true,
+    "[shellscript]": {
+        "editor.defaultFormatter": "foxundermoon.shell-format"
+    }
+}
