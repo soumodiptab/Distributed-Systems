@@ -12,6 +12,7 @@ for line in sys.stdin:
     votes = int(zone_info[1])
     total = int(zone_info[2])
     flag = int(zone_info[3])
+    perc = float(zone_info[4])
     if current_state == state:
         zone_counter += 1
         zone_votes += votes
@@ -19,7 +20,7 @@ for line in sys.stdin:
         zone_flag += flag
     else:
         if current_state:
-            print("%s\t%s\t%s\t%s\t%s" % (current_state, zone_counter, zone_votes, zone_total, zone_flag))
+            print("%s %s %s %s %s %s" % (current_state, zone_counter, zone_votes, zone_total, zone_flag,perc))
         current_state = state
         zone_counter = 1
         zone_votes = votes
@@ -27,4 +28,4 @@ for line in sys.stdin:
         zone_flag = flag
 
 if current_state == state:
-    print("%s\t%s\t%s\t%s\t%s" % (current_state, zone_counter, zone_votes, zone_total, zone_flag))
+    print("%s %s %s %s %s %s" % (current_state, zone_counter, zone_votes, zone_total, zone_flag,perc))

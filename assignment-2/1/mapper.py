@@ -6,8 +6,9 @@ for line in sys.stdin:
     zone =  zone_info[0]
     votes = zone_info[2]
     total = zone_info[3]
+    perc = zone_info[5]
     if zone_info[4] == "YES":
         flag = 1
     else:
         flag = 0
-    print(state + "\t" + zone + " "+ votes + " " + total + " " + str(flag))
+    print(state + "\t" + zone + " "+ votes + " " + total + " " + str(flag)+ " " + perc)
