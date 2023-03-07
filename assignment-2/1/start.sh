@@ -6,8 +6,8 @@ rm -r output
 rm -r input
 mkdir input
 mkdir output
-echo "=== Running runner script... ==="
-python3 runner.py
+echo "=== Running input formatting script... ==="
+python3 input_formatter.py
 echo "=== Generating input files for mapreduce job... ==="
 ls -l ./input
 echo "=== removing old output and input from HDFS... ==="
