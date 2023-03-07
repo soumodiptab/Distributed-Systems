@@ -7,13 +7,15 @@ rm -r input
 mkdir input
 mkdir output
 echo "=== Running input formatting script... ==="
-# check exit status of python script
 python3 input_formatter.py
-if [ $? != 0 ];
-then
+if [ $? != 0 ]; then
     echo "Incorrect input format."
     exit 1
 fi
+source variables
+echo "=== FINAL DIMENSIONS ==="
+echo "ROWS: $ROWS"
+echo "COLS: $COLS"
 echo "=== Generating input files for mapreduce job... ==="
 ls -l ./input
 echo "=== removing old output and input from HDFS... ==="
@@ -33,3 +35,18 @@ hdfs dfs -cat output/* >input/f1.txt
 echo "====================  STAGE 1 OUPUT  ===================="
 cat input/f1.txt
 echo "========================================================="
+echo "=== removing old output and input from HDFS... ==="
+hdfs dfs -rm -r output
+hdfs dfs -rm -r input
+echo "=== Creating input directory... ==="
+hadoop fs -mkdir -p input
+echo "=== Copying input files to HDFS... ==="
+hdfs dfs -put input/* input
+echo "=== Running MapReduce JOB2 ==="
+mapred streaming -files mapper2.py,reducer2.py -mapper 'python3 mapper2.py' -reducer "python3 reducer2.py $ROWS $COLS" -input input -output output
+echo "=== MapReduce job completed. ==="
+hdfs dfs -cat output/* >output/out.txt
+echo "====================  STAGE 2 OUPUT  ===================="
+cat output/out.txt
+echo "========================================================="
+cd ..

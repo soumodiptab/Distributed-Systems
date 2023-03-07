@@ -8,6 +8,10 @@ mkdir input
 mkdir output
 echo "=== Running input formatting script... ==="
 python3 input_formatter.py
+if [ $? != 0 ]; then
+    echo "Incorrect input format."
+    exit 1
+fi
 echo "=== Generating input files for mapreduce job... ==="
 ls -l ./input
 echo "=== removing old output and input from HDFS... ==="
