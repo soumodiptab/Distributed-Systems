@@ -9,8 +9,8 @@ matrix = [[0 for x in range(cols)] for y in range(rows)]
 for line in sys.stdin:
     line = line.strip()
     tokens = line.split('\t')
-    i,k = tokens[0].split(',')
-    val = tokens[1]
+    i,k = tokens[1].split(',')
+    val = tokens[2]
     matrix[int(i)][int(k)] += int(val)
 
 # print the matrix
